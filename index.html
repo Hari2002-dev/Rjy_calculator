@@ -48,7 +48,7 @@ input:focus{border-color:#0f766e;box-shadow:0 0 0 3px #0f766e18}
 .empty{text-align:center;padding:24px;color:#64748b}.form-actions{display:flex;gap:9px;margin-top:16px}.form-actions .btn{flex:1}
 .bottom{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e2e8f0;display:flex;justify-content:center;z-index:20;padding:7px max(7px,env(safe-area-inset-left)) max(7px,env(safe-area-inset-bottom))}
 .nav{width:min(520px,100%);display:flex}.nav button{flex:1;border:0;background:transparent;padding:8px 3px;color:#64748b;font-size:11px;font-weight:700}.nav button span{display:block;font-size:22px;margin-bottom:2px}.nav button.active{color:#0f766e}
-.modal{display:none;position:fixed;inset:0;background:#0008;z-index:30;align-items:flex-end;padding:12px}.modal.show{display:flex}.sheet{width:min(520px,100%);margin:auto;background:#fff;border-radius:22px;padding:20px}.sheet h3{margin:0 0 6px;font-size:20px}.sheet p{margin:0 0 12px;color:#64748b;font-size:13px}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99;overflow-y:auto;padding:20px 10px;}
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#111;color:#fff;padding:10px 14px;border-radius:10px;font-size:13px;display:none;z-index:40}
 .no-animation{animation:none!important;transition:none!important}
 
@@ -234,21 +234,38 @@ if($('amount')) $('amount').addEventListener('input',calculate);
 function clearCalc(){$('amount').value='';calculate()}
 function focusAmount(){$('amount').focus()}
 
-function selectProduct(i){
-  if(!products[i]) return;
-  const p=products[i];
-  $('kgPrice').value=p.price;
-  $('selectedProductLabel').textContent='Product: '+p.name+' • ₹'+p.price+' / KG';
-  recentSearches=[p.name,...recentSearches.filter(x=>x.toLowerCase()!==p.name.toLowerCase())].slice(0,5);
-  localStorage.setItem('rkRecentSearches',JSON.stringify(recentSearches));
-  renderQuick();
-  calculate();
-  go('home',document.querySelector('[data-page=home]'));
-  setTimeout(focusAmount,80);
-}
-
-let cart=[];
+ let cart=[];
 let billNumber=localStorage.getItem('rkBillNumber')||'1001';
+  
+function selectProduct(index) {
+  const p = products[index];
+  if (!p) return;
+
+  // Selected weight in grams (defaults to 250g if not set)
+  const addGrams = window.selectedGram || 250; 
+  const existing = cart.find(item => item.name === p.name);
+
+  if (existing) {
+    // Accumulate weight: 250g -> 500g -> 750g
+    existing.grams += addGrams;
+    existing.qtyText = existing.grams >= 1000 
+      ? (existing.grams / 1000) + ' kg' 
+      : existing.grams + ' gm';
+    existing.total = (existing.grams / 1000) * existing.rate;
+  } else {
+    // New item entry
+    cart.push({
+      name: p.name,
+      rate: p.price,
+      grams: addGrams,
+      qtyText: addGrams >= 1000 ? (addGrams / 1000) + ' kg' : addGrams + ' gm',
+      total: (addGrams / 1000) * p.price
+    });
+  }
+
+  renderCart();
+  if (typeof showToast === 'function') showToast(p.name + ' updated in bill!');
+}
 
 function renderCartSuggestions(){
  const q=($('cartSearch').value||'').toLowerCase().trim();
