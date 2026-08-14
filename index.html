@@ -282,17 +282,17 @@ function addToCart(i){
  const p=products[i], qty=parseFloat($('cartQty').value), unit=$('cartUnit').value;
  if(!qty||qty<=0){showToast('Enter a valid quantity');return}
  let amount=0, label='';
- if(unit==='gm'){amount=(qty/1000)*p.price;label=qty+' gm'}
- else if(unit==='kg'){amount=qty*p.price;label=qty+' KG'}
- else if(unit==='packet'){amount=qty*p.price;label=qty+' packet'}
- else {amount=qty*(p.price/2);label=qty+' half packet'}
+ if(unit==='gm'){amount=Math.round((qty/1000)*p.price);label=qty+' gm';}
+else if(unit==='kg'){amount=Math.round(qty*p.price);label=qty+' kg';}
+else if(unit==='packet'){amount=Math.round(qty*p.price);label=qty+' packet';}
+else {amount=Math.round(qty*(p.price/2));label=qty+' half packet';}
  const existing=cart.find(x=>x.name===p.name&&x.unit===unit&&x.qty===qty);
  if(existing) existing.amount+=amount; else cart.push({name:p.name,price:p.price,qty,unit,label,amount});
  $('cartSearch').value=''; renderCartSuggestions(); renderCart(); showToast(p.name+' added');
 }
 function renderCart(){
  $('cartList').innerHTML=cart.length?cart.map((x,i)=>`<div class="product">
- <div class="pinfo"><div class="pname">${esc(x.name)}</div><div class="pprice">${esc(x.label)} • ₹${x.amount.toFixed(2)}</div></div>
+ <div class="pinfo"><div class="pname">${esc(x.name)}</div><div class="pprice">${esc(x.label)} • ₹${x.amount.toFixed(0)}</div></div>
  <button class="mini danger" onclick="removeCart(${i})">🗑️</button></div>`).join(''):'<div class="empty">No products in cart.</div>';
  $('cartTotal').textContent='₹'+cart.reduce((s,x)=>s+x.amount,0).toFixed(2);
 }
