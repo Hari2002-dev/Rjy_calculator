@@ -91,9 +91,13 @@ input:focus{border-color:#0f766e;box-shadow:0 0 0 3px #0f766e18}
 <div class="form-actions"><button class="btn secondary" onclick="clearCalc()">Clear</button><button class="btn primary" onclick="focusAmount()">Enter Amount</button></div>
 </div>
 <div class="card">
-<h2>🕘 Recent Searches</h2>
-<div id="quickProducts"></div>
+  <h2>🕒 Select / Search Product</h2>
+  <div style="margin-bottom: 12px;">
+    <input type="text" id="homeSearch" placeholder="🔍 Search product..." oninput="renderQuick()" style="width: 100%; padding: 10px 14px; font-size: 15px; border: 1px solid #d1d5db; border-radius: 8px; outline: none;">
+  </div>
+  <div id="quickProducts"></div>
 </div>
+  
 </section>
 
 <section id="products" class="page">
@@ -346,13 +350,27 @@ function renderManage(){
 }
 
 function renderQuick(){
-  const list=recentSearches
-    .map(name=>products.findIndex(p=>p.name.toLowerCase()===name.toLowerCase()))
-    .filter(i=>i>=0);
-  $('quickProducts').innerHTML=list.length
-    ?list.map(i=>'<div class="product" onclick="selectProduct('+i+')"><div class="pinfo"><div class="pname">'+esc(products[i].name)+'</div><div class="pprice">₹'+products[i].price+' / 1 KG</div></div><button class="mini" onclick="event.stopPropagation();selectProduct('+i+')">🧮</button></div>').join('')
-    :'<div class="empty">No recent searches yet.<br>Select a product to see it here.</div>';
+  const q = ($('homeSearch') ? $('homeSearch').value : '').toLowerCase().trim();
+  
+  if (q) {
+    const list = products.map((p, i) => ({p, i}))
+      .filter(x => x.p.name.toLowerCase().includes(q))
+      .sort((a,b) => a.p.name.localeCompare(b.p.name, undefined, {sensitivity: 'base'}));
+
+    $('quickProducts').innerHTML = list.length
+      ? list.map(x => '<div class="product" onclick="selectProduct('+x.i+')"><div class="pinfo"><div class="pname">'+esc(x.p.name)+'</div><div class="pprice">₹'+x.p.price+' / 1 KG</div></div><button class="mini" onclick="event.stopPropagation();selectProduct('+x.i+')">🧮</button></div>').join('')
+      : '<div class="empty">No products match "' + esc(q) + '"</div>';
+  } else {
+    const list = recentSearches
+      .map(name => products.findIndex(p => p.name.toLowerCase() === name.toLowerCase()))
+      .filter(i => i >= 0);
+
+    $('quickProducts').innerHTML = list.length
+      ? list.map(i => '<div class="product" onclick="selectProduct('+i+')"><div class="pinfo"><div class="pname">'+esc(products[i].name)+'</div><div class="pprice">₹'+products[i].price+' / 1 KG</div></div><button class="mini" onclick="event.stopPropagation();selectProduct('+i+')">🧮</button></div>').join('')
+      : '<div class="empty">No recent searches yet.<br>Type in search box above to find any item.</div>';
+  }
 }
+  
 
 function openProductModal(i){
  editIndex=i;
