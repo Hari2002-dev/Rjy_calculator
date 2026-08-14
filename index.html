@@ -182,7 +182,6 @@ Peanuts/pallilu - ₹140 / 1 KG"></textarea>
 <button class="btn secondary" style="width:100%;margin-top:9px" onclick="closeBillPreview()">Close</button>
 </div></div>
 <div class="toast" id="toast"></div>
-
 <script>
 const KEY='rajahmundryKiranaProducts_v1';
 const defaults=[{"name": "Aata", "price": 44}, {"name": "Atukulu mixture", "price": 80}, {"name": "Bansiravva", "price": 44}, {"name": "Bellam", "price": 60}, {"name": "Burgupudi bellam", "price": 65}, {"name": "Chai minappapu", "price": 130}, {"name": "Chollu", "price": 50}, {"name": "Dhaniyalu", "price": 220}, {"name": "Double beans", "price": 160}, {"name": "Double horse", "price": 160}, {"name": "Erra kandipappu", "price": 88}, {"name": "Ganjipindi loose", "price": 60}, {"name": "Gantlu", "price": 70}, {"name": "Garlic/velluli big", "price": 240}, {"name": "Garlic/velluli small", "price": 120}, {"name": "Garuku Soda", "price": 65}, {"name": "Gasagasalu", "price": 1600}, {"name": "Green batani", "price": 140}, {"name": "Idly no.1", "price": 40}, {"name": "Jeera/Jeelakara", "price": 320}, {"name": "Kandipappu", "price": 120}, {"name": "Karachi", "price": 44}, {"name": "Kunkudikayalu", "price": 70}, {"name": "Makki", "price": 80}, {"name": "Menthulu", "price": 120}, {"name": "Minapappu", "price": 115}, {"name": "Mirchi cutting", "price": 280}, {"name": "Mirchi sannalu", "price": 240}, {"name": "Patha bellam", "price": 80}, {"name": "Peanuts/pallilu", "price": 140}, {"name": "Pesalu", "price": 120}, {"name": "Pesara Pappu", "price": 120}, {"name": "Potti pesarapappu", "price": 114}, {"name": "Putnalu/vepudu", "price": 100}, {"name": "Saggibiyyam", "price": 100}, {"name": "Senaga Pappu", "price": 84}, {"name": "Senagalu", "price": 80}, {"name": "Senagapindi", "price": 100}, {"name": "Sugar/Panchadara", "price": 54}, {"name": "Thine soda/pappala soda", "price": 55}, {"name": "White batani", "price": 60}, {"name": "White sengalu", "price": 110}];
@@ -225,11 +224,13 @@ function calculate(){
     $('details').textContent=v+' gm at ₹'+p+' / KG';
   }
 }
-$('kgPrice').addEventListener('input',calculate);
-$('amount').addEventListener('input',calculate);
+if($('kgPrice')) $('kgPrice').addEventListener('input',calculate);
+if($('amount')) $('amount').addEventListener('input',calculate);
 function clearCalc(){$('amount').value='';calculate()}
 function focusAmount(){$('amount').focus()}
+
 function selectProduct(i){
+  if(!products[i]) return;
   const p=products[i];
   $('kgPrice').value=p.price;
   $('selectedProductLabel').textContent='Product: '+p.name+' • ₹'+p.price+' / KG';
@@ -244,10 +245,6 @@ function selectProduct(i){
 let cart=[];
 let billNumber=localStorage.getItem('rkBillNumber')||'1001';
 
-function findProductByName(name){
- const key=name.trim().toLowerCase();
- return products.find(p=>p.name.trim().toLowerCase()===key);
-}
 function renderCartSuggestions(){
  const q=($('cartSearch').value||'').toLowerCase().trim();
  const list=products.map((p,i)=>({p,i})).filter(x=>!q||x.p.name.toLowerCase().includes(q))
@@ -322,4 +319,108 @@ function makeBillHTML(){
 function openBillPreview(){
  if(!cart.length){showToast('Add at least one product');return}
  $('billPreview').innerHTML=makeBillHTML();
- $('billModal').classList.add
+ $('billModal').classList.add('show');
+}
+function closeBillPreview(){$('billModal').classList.remove('show')}
+
+function renderProducts(){
+ const q=($('productSearch').value||'').toLowerCase().trim();
+ const list=products.map((p,i)=>({p,i}))
+   .filter(x=>x.p.name.toLowerCase().includes(q))
+   .sort((a,b)=>a.p.name.localeCompare(b.p.name,undefined,{sensitivity:'base'}));
+ $('productCount').textContent=products.length+' products';
+ $('productList').innerHTML=list.length
+ ?list.map(x=>'<div class="product" onclick="selectProduct('+x.i+')"><div class="pinfo"><div class="pname">'+esc(x.p.name)+'</div><div class="pprice">₹'+x.p.price+' / 1 KG</div></div><button class="mini" onclick="event.stopPropagation();selectProduct('+x.i+')">🧮</button></div>').join('')
+ :'<div class="empty">No products found.</div>';
+}
+
+function renderManage(){
+ const q=($('manageSearch').value||'').toLowerCase().trim();
+ const list=products.map((p,i)=>({p,i}))
+   .filter(x=>x.p.name.toLowerCase().includes(q))
+   .sort((a,b)=>a.p.name.localeCompare(b.p.name,undefined,{sensitivity:'base'}));
+ $('manageCount').textContent=products.length+' total';
+ $('manageList').innerHTML=list.length
+ ?list.map(x=>'<div class="product"><div class="pinfo"><div class="pname">'+esc(x.p.name)+'</div><div class="pprice">₹'+x.p.price+' / 1 KG</div></div><button class="mini edit" onclick="openProductModal('+x.i+')">✏️</button><button class="mini danger" onclick="deleteProduct('+x.i+')">🗑️</button></div>').join('')
+ :'<div class="empty">No products found.</div>';
+}
+
+function renderQuick(){
+  const list=recentSearches
+    .map(name=>products.findIndex(p=>p.name.toLowerCase()===name.toLowerCase()))
+    .filter(i=>i>=0);
+  $('quickProducts').innerHTML=list.length
+    ?list.map(i=>'<div class="product" onclick="selectProduct('+i+')"><div class="pinfo"><div class="pname">'+esc(products[i].name)+'</div><div class="pprice">₹'+products[i].price+' / 1 KG</div></div><button class="mini" onclick="event.stopPropagation();selectProduct('+i+')">🧮</button></div>').join('')
+    :'<div class="empty">No recent searches yet.<br>Select a product to see it here.</div>';
+}
+
+function openProductModal(i){
+ editIndex=i;
+ $('modalTitle').textContent=i<0?'Add Product':'Edit Product';
+ $('productName').value=i<0?'':products[i].name;
+ $('productPrice').value=i<0?'':products[i].price;
+ $('modal').classList.add('show');setTimeout(()=>$('productName').focus(),50);
+}
+function closeModal(){$('modal').classList.remove('show')}
+function saveProduct(){
+ const name=$('productName').value.trim(),price=parseFloat($('productPrice').value);
+ if(!name||!price||price<=0){showToast('Enter a valid name and price');return}
+ const duplicate=products.findIndex((p,i)=>i!==editIndex && p.name.trim().toLowerCase()===name.toLowerCase());
+ if(duplicate>=0){showToast('Product already added: '+products[duplicate].name);return}
+ const wasNew=editIndex<0;
+ if(wasNew)products.push({name,price});else products[editIndex]={name,price};
+ persist();renderAll();closeModal();showToast(wasNew?'Product added':'Product updated');
+}
+function openBulkImport(){
+ $('bulkInput').value='';
+ $('bulkModal').classList.add('show');
+ setTimeout(()=>$('bulkInput').focus(),50);
+}
+function closeBulkImport(){$('bulkModal').classList.remove('show')}
+function importProducts(){
+ const raw=$('bulkInput').value.trim();
+ if(!raw){showToast('Paste your product list first');return}
+ const parsed=[], invalid=[];
+ for(const original of raw.split(/\r?\n/)){
+   let line=original.trim();
+   if(!line)continue;
+   if(/products?\s*\(\d+\)/i.test(line))continue;
+   line=line.replace(/^\s*\d+\s*[\.\)]\s*/,'');
+   const m=line.match(/(?:₹\s*)?(\d+(?:\.\d+)?)\s*(?:\/\s*1\s*kg|\/\s*kg)?\s*\/?-?\s*$/i);
+   if(!m){invalid.push(original);continue}
+   const price=parseFloat(m[1]);
+   let name=line.slice(0,m.index).trim().replace(/[-–—:]\s*$/,'').trim();
+   if(!name||!price){invalid.push(original);continue}
+   const key=name.toLowerCase();
+   if(products.some(p=>p.name.trim().toLowerCase()===key))continue;
+   if(parsed.some(p=>p.name.trim().toLowerCase()===key))continue;
+   parsed.push({name,price});
+ }
+ if(!parsed.length){showToast('No new products found');return}
+ products.push(...parsed);
+ products.sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:'base'}));
+ persist();renderAll();closeBulkImport();
+ showToast(parsed.length+' products added');
+}
+
+function deleteProduct(i){
+ if(confirm('Delete '+products[i].name+'?')){products.splice(i,1);persist();renderAll();showToast('Product deleted')}
+}
+
+function renderAll(){renderProducts();renderManage();renderQuick()}
+function go(page,btn){
+ document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+ $(page).classList.add('active');
+ document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));
+ if(btn)btn.classList.add('active');
+ window.scrollTo(0,0);
+}
+function showToast(t){$('toast').textContent=t;$('toast').style.display='block';clearTimeout(window._toast);window._toast=setTimeout(()=>$('toast').style.display='none',1500)}
+
+renderAll();
+setCalcMode(calcMode);
+
+if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+renderCartSuggestions();renderCart();
+                                    </script>
+                                    
