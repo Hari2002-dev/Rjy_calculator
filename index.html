@@ -343,4 +343,262 @@ function makeBillHTML(){
    <td style="text-align:center">${esc(x.label)}</td>
    <td class="num">₹${x.price.toFixed(2)}</td>
    <td class="num">₹${x.amount.toFixed(2)}</td>
-   <td class="num">₹${x.amount.toFix
+      <td class="num">₹${x.amount.toFixed(2)}</td>
+ </tr>`).join('');
+
+ return `<div class="invoice">
+   <div class="invoice-head">
+     <h1>Rajahmundry Kirana</h1>
+     <div class="title">CASH MEMO / BILL</div>
+   </div>
+   <div class="invoice-meta">
+     <div><b>Customer:</b> ${name}</div>
+     <div><b>Date:</b> ${date} ${time}</div>
+     ${customerGST ? `<div><b>GSTIN:</b> ${customerGST}</div>` : ''}
+     <div><b>Bill No:</b> #${billNumber}</div>
+   </div>
+   <table class="invoice-table">
+     <thead>
+       <tr>
+         <th>#</th>
+         <th>Item</th>
+         <th>Qty</th>
+         <th>Rate</th>
+         <th>Amount</th>
+       </tr>
+     </thead>
+     <tbody>${rows}</tbody>
+   </table>
+   <div class="invoice-total">
+     <div>Total: ₹${total.toFixed(2)}</div>
+   </div>
+   <div class="invoice-note">Thank you! Visit Again.</div>
+ </div>`;
+}
+
+function openBillPreview(){
+ if(!cart.length){ showToast('Cart is empty!'); return; }
+ $('billPreview').innerHTML = makeBillHTML();
+ $('billModal').style.display = 'block';
+}
+
+function closeBillPreview(){
+ $('billModal').style.display = 'none';
+}
+
+function shareBill(){
+ const name = ($('customerName').value || 'Customer').trim();
+ let text = `*Rajahmundry Kirana - Bill*\nCustomer: ${name}\n------------------\n`;
+ cart.forEach((x, i) => {
+   text += `${i + 1}. ${x.name} (${x.label}) - ₹${x.amount}\n`;
+ });
+ const total = cart.reduce((s, x) => s + x.amount, 0);
+ text += `------------------\n*Total: ₹${total}*\nThank you!`;
+
+ if(navigator.share){
+   navigator.share({ title: 'Rajahmundry Kirana Bill', text: text });
+ } else {
+   navigator.clipboard.writeText(text);
+   showToast('Bill copied to clipboard!');
+ }
+}
+
+function downloadBillPDF(){
+ const element = $('billPreview');
+ const opt = {
+   margin:       5,
+   filename:     `Bill_${billNumber}.pdf`,
+   image:        { type: 'jpeg', quality: 0.98 },
+   html2canvas:  { scale: 2 },
+   jsPDF:        { unit: 'mm', format: 'a6', orientation: 'portrait' }
+ };
+ html2pdf().set(opt).from(element).save();
+ billNumber = parseInt(billNumber) + 1;
+ localStorage.setItem('rkBillNumber', billNumber);
+}
+
+function go(pageId, btn){
+ document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+ document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+ $(pageId).classList.add('active');
+ if(btn) btn.classList.add('active');
+ else {
+   const navBtn = document.querySelector(`.nav button[data-page="${pageId}"]`);
+   if(navBtn) navBtn.classList.add('active');
+ }
+ if(pageId === 'products') renderProducts();
+ if(pageId === 'manage') renderManage();
+ if(pageId === 'home') renderQuick();
+}
+
+function renderQuick(){
+ const q = ($('homeSearch') ? $('homeSearch').value : '').toLowerCase().trim();
+ const list = products.map((p, i) => ({ p, i }))
+   .filter(x => !q || x.p.name.toLowerCase().includes(q))
+   .sort((a, b) => a.p.name.localeCompare(b.p.name, undefined, { sensitivity: 'base' }))
+   .slice(0, 10);
+
+ $('quickProducts').innerHTML = list.map(x => `
+   <div class="product" onclick="selectProduct(${x.i})">
+     <div class="pinfo">
+       <div class="pname">${esc(x.p.name)}</div>
+       <div class="pprice">₹${x.p.price} / Unit</div>
+     </div>
+     <button class="mini">Select</button>
+   </div>
+ `).join('');
+}
+
+function renderProducts(){
+ const q = ($('productSearch').value || '').toLowerCase().trim();
+ const list = products.map((p, i) => ({ p, i }))
+   .filter(x => !q || x.p.name.toLowerCase().includes(q))
+   .sort((a, b) => a.p.name.localeCompare(b.p.name, undefined, { sensitivity: 'base' }));
+
+ $('productCount').textContent = `(${list.length})`;
+ $('productList').innerHTML = list.length ? list.map(x => `
+   <div class="product" onclick="selectProduct(${x.i})">
+     <div class="pinfo">
+       <div class="pname">${esc(x.p.name)}</div>
+       <div class="pprice">₹${x.p.price}</div>
+     </div>
+     <button class="mini">🧮</button>
+   </div>
+ `).join('') : '<div class="empty">No products found.</div>';
+}
+
+function renderManage(){
+ const q = ($('manageSearch').value || '').toLowerCase().trim();
+ const list = products.map((p, i) => ({ p, i }))
+   .filter(x => !q || x.p.name.toLowerCase().includes(q))
+   .sort((a, b) => a.p.name.localeCompare(b.p.name, undefined, { sensitivity: 'base' }));
+
+ $('manageCount').textContent = `(${list.length})`;
+ $('manageList').innerHTML = list.length ? list.map(x => `
+   <div class="product">
+     <div class="pinfo">
+       <div class="pname">${esc(x.p.name)}</div>
+       <div class="pprice">₹${x.p.price}</div>
+     </div>
+     <button class="mini edit" onclick="openProductModal(${x.i})">✏️</button>
+     <button class="mini danger" onclick="deleteProduct(${x.i})">🗑️</button>
+   </div>
+ `).join('') : '<div class="empty">No products found.</div>';
+}
+
+function setUnitPill(unit){
+ currentSelectedUnit = unit;
+ document.querySelectorAll('.unit-pills .pill').forEach(p => {
+   p.classList.toggle('active', p.textContent === unit);
+ });
+}
+
+function openProductModal(index = -1){
+ editIndex = index;
+ if(index >= 0){
+   const p = products[index];
+   $('modalTitle').textContent = 'Edit Product';
+   $('productName').value = p.name;
+   $('productPrice').value = p.price;
+ } else {
+   $('modalTitle').textContent = 'Add New Product';
+   $('productName').value = '';
+   $('productPrice').value = '';
+ }
+ $('modal').style.display = 'block';
+}
+
+function closeModal(){
+ $('modal').style.display = 'none';
+}
+
+function saveProduct(){
+ const name = $('productName').value.trim();
+ const price = parseFloat($('productPrice').value);
+ if(!name || isNaN(price)){ showToast('Please enter a valid name and price'); return; }
+
+ if(editIndex >= 0){
+   products[editIndex] = { name, price };
+   showToast('Product updated');
+ } else {
+   products.push({ name, price });
+   showToast('Product added');
+ }
+ persist();
+ closeModal();
+ renderManage();
+ renderProducts();
+ renderQuick();
+}
+
+function deleteProduct(index){
+ if(confirm(`Delete "${products[index].name}"?`)){
+   products.splice(index, 1);
+   persist();
+   renderManage();
+   renderProducts();
+   renderQuick();
+   showToast('Product deleted');
+ }
+}
+
+function openBulkImport(){ $('bulkModal').style.display = 'block'; }
+function closeBulkImport(){ $('bulkModal').style.display = 'none'; }
+
+function importProducts(){
+ const text = $('bulkInput').value;
+ if(!text.trim()) return;
+
+ const lines = text.split('\n');
+ let addedCount = 0;
+
+ lines.forEach(line => {
+   const match = line.match(/^(.+?)\s+([0-9]+)\/-?$/) || line.match(/^(.+?)\s+([0-9]+)$/);
+   if(match){
+     const name = match[1].trim();
+     const price = parseFloat(match[2]);
+     const existingIndex = products.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
+     if(existingIndex >= 0){
+       products[existingIndex].price = price;
+     } else {
+       products.push({ name, price });
+     }
+     addedCount++;
+   }
+ });
+
+ persist();
+ closeBulkImport();
+ $('bulkInput').value = '';
+ renderManage();
+ showToast(`Processed ${addedCount} products`);
+}
+
+function shareProducts(){
+ let text = "*Rajahmundry Kirana Price List*\n------------------\n";
+ products.forEach(p => {
+   text += `${p.name}: ₹${p.price}\n`;
+ });
+ if(navigator.share){
+   navigator.share({ title: 'Price List', text: text });
+ } else {
+   navigator.clipboard.writeText(text);
+   showToast('Product list copied!');
+ }
+}
+
+function showToast(msg){
+ const t = $('toast');
+ t.textContent = msg;
+ t.style.display = 'block';
+ setTimeout(() => { t.style.display = 'none'; }, 2000);
+}
+
+// Initial render
+renderQuick();
+renderCartSuggestions();
+renderCart();
+</script>
+</body>
+</html>
+
